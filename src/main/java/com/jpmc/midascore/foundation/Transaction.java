@@ -46,3 +46,4 @@ public class Transaction {
         return "Transaction {senderId=" + senderId + ", recipientId=" + recipientId + ", amount=" + amount + "}";
     }
 }
+

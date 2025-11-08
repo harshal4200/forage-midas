@@ -1,6 +1,7 @@
 package com.jpmc.midascore;
 
 import com.jpmc.midascore.foundation.Balance;
+import com.jpmc.midascore.foundation.Transaction;  // YEH IMPORT ADD KARO
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,14 +28,17 @@ public class TaskFiveTests {
     @Autowired
     private BalanceQuerier balanceQuerier;
 
-
     @Test
     void task_five_verifier() throws InterruptedException {
         userPopulator.populate();
         String[] transactionLines = fileLoader.loadStrings("/test_data/rueiwoqp.tyruei");
+
         for (String transactionLine : transactionLines) {
-            kafkaProducer.send(transactionLine);
+            // YEH LINE FIX KARO
+            Transaction transaction = parseTransactionLine(transactionLine);
+            kafkaProducer.send("midas-topic", transaction);
         }
+
         Thread.sleep(2000);
 
         logger.info("----------------------------------------------------------");
@@ -48,5 +52,19 @@ public class TaskFiveTests {
         }
         output.append("---end output ---");
         logger.info(output.toString());
+    }
+
+    // Transaction line parse karne ka method add karo
+    private Transaction parseTransactionLine(String transactionLine) {
+        // Example: "senderId,recipientId,amount" format
+        String[] parts = transactionLine.split(",");
+        if (parts.length == 3) {
+            long senderId = Long.parseLong(parts[0].trim());
+            long recipientId = Long.parseLong(parts[1].trim());
+            float amount = Float.parseFloat(parts[2].trim());
+            return new Transaction(senderId, recipientId, amount);
+        } else {
+            throw new IllegalArgumentException("Invalid transaction line: " + transactionLine);
+        }
     }
 }

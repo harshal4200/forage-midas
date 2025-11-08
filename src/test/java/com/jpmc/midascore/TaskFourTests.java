@@ -7,6 +7,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.test.annotation.DirtiesContext;
+import com.jpmc.midascore.foundation.Transaction;
+import com.jpmc.midascore.entity.UserRecord;
+import com.jpmc.midascore.repository.UserRecordRepository;
 
 @SpringBootTest
 @DirtiesContext
@@ -23,24 +26,51 @@ public class TaskFourTests {
     @Autowired
     private FileLoader fileLoader;
 
+    @Autowired
+    private UserRecordRepository userRecordRepository; // YEH ADD KARO
+
     @Test
     void task_four_verifier() throws InterruptedException {
         userPopulator.populate();
         String[] transactionLines = fileLoader.loadStrings("/test_data/alskdjfh.fhdjsk");
+
         for (String transactionLine : transactionLines) {
-            kafkaProducer.send(transactionLine);
+            Transaction transaction = parseTransactionLine(transactionLine);
+            kafkaProducer.send("midas-topic", transaction);
         }
-        Thread.sleep(2000);
 
+        Thread.sleep(5000); // Transactions + incentive API calls ke liye extra time
+
+        // YEH CODE ADD KARO - Direct wilbur ka balance print karo
+        UserRecord wilbur = userRecordRepository.findByName("wilbur").orElse(null);
+        if (wilbur != null) {
+            float balance = wilbur.getBalance();
+            int roundedBalance = (int) Math.floor(balance);
+            logger.info("🎯🎯🎯 WILBUR FINAL BALANCE: " + roundedBalance + " 🎯🎯🎯");
+            logger.info("SUBMIT THIS NUMBER: " + roundedBalance);
+        } else {
+            logger.info("Wilbur user not found!");
+        }
 
         logger.info("----------------------------------------------------------");
-        logger.info("----------------------------------------------------------");
-        logger.info("----------------------------------------------------------");
-        logger.info("use your debugger to find out what wilbur's balance is after all transactions are processed");
-        logger.info("kill this test once you find the answer");
-        while (true) {
-            Thread.sleep(20000);
-            logger.info("...");
+        logger.info("TEST COMPLETED - Check above for Wilbur's balance");
+
+        // Infinite loop comment karo
+        // while (true) {
+        //     Thread.sleep(20000);
+        //     logger.info("...");
+        // }
+    }
+
+    private Transaction parseTransactionLine(String transactionLine) {
+        String[] parts = transactionLine.split(",");
+        if (parts.length == 3) {
+            long senderId = Long.parseLong(parts[0].trim());
+            long recipientId = Long.parseLong(parts[1].trim());
+            float amount = Float.parseFloat(parts[2].trim());
+            return new Transaction(senderId, recipientId, amount);
+        } else {
+            throw new IllegalArgumentException("Invalid transaction line: " + transactionLine);
         }
     }
 }
